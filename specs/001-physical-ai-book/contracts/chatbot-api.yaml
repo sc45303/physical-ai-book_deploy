@@ -1,0 +1,232 @@
+# OpenAPI Contract: RAG Chatbot for Physical AI & Humanoid Robotics Course Book
+
+openapi: 3.0.0
+info:
+  title: RAG Chatbot API
+  description: API for the retrieval-augmented generation chatbot embedded in the Physical AI & Humanoid Robotics Course Book
+  version: 1.0.0
+  contact:
+    name: Course Development Team
+    email: info@physicalai-course.com
+
+servers:
+  - url: https://api.physicalai-course.com/v1
+    description: Production server
+  - url: https://staging-api.physicalai-course.com/v1
+    description: Staging server
+
+paths:
+  /chat:
+    post:
+      summary: Process user question and return answer based on book content
+      operationId: processQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserQuestion'
+            examples:
+              example1:
+                summary: Sample question
+                value:
+                  question: "What is ROS 2 and how does it differ from ROS 1?"
+                  moduleContext: "ROS 2 - The Robotic Nervous System"
+                  chapterContext: "Introduction to ROS 2 and Middleware Concepts"
+      responses:
+        '200':
+          description: Answer to the user's question
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Question cannot be answered based on book content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /search:
+    post:
+      summary: Search book content based on user query
+      operationId: searchContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchQuery'
+      responses:
+        '200':
+          description: Search results with relevant content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '400':
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserQuestion:
+      type: object
+      required:
+        - question
+      properties:
+        question:
+          type: string
+          description: The question asked by the user
+          example: "How do I implement a path planner for a humanoid robot?"
+        moduleContext:
+          type: string
+          description: The module context for the question (optional)
+          example: "NVIDIA Isaac - The AI-Robot Brain"
+        chapterContext:
+          type: string
+          description: The chapter context for the question (optional)
+          example: "Nav2 Path Planning for Bipedal Robots"
+        selectedText:
+          type: string
+          description: Specific text selected by the user for focused questions (optional)
+          example: "Navigation in dynamic environments requires..."
+
+    ChatbotResponse:
+      type: object
+      required:
+        - answer
+        - sources
+        - groundedInBook
+      properties:
+        answer:
+          type: string
+          description: The answer to the user's question based on book content
+          example: "Path planning for humanoid robots in ROS 2 involves using the Nav2 stack..."
+        sources:
+          type: array
+          items:
+            type: string
+          description: List of book content sources used to generate the answer
+          example: ["/modules/ros2/chapter2", "/modules/isaac/chapter3"]
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Confidence score of the response
+          example: 0.92
+        groundedInBook:
+          type: boolean
+          description: Indicates if the response is grounded in book content
+          default: true
+
+    SearchQuery:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: The search query
+          example: "humanoid robot walking gait"
+        moduleFilter:
+          type: string
+          description: Optional filter to search within a specific module
+          example: "Gazebo & Unity - The Digital Twin"
+        limit:
+          type: integer
+          description: Maximum number of results to return
+          default: 10
+          minimum: 1
+          maximum: 50
+
+    SearchResults:
+      type: object
+      required:
+        - results
+        - totalCount
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+        totalCount:
+          type: integer
+          description: Total number of results found
+        queryTime:
+          type: number
+          format: float
+          description: Time taken to process the query in seconds
+
+    SearchResult:
+      type: object
+      required:
+        - id
+        - title
+        - content
+        - module
+        - chapter
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the content
+          example: "module3_chapter2_section5"
+        title:
+          type: string
+          description: Title of the content section
+          example: "Implementing Walking Gait Patterns"
+        content:
+          type: string
+          description: Excerpt of the content
+          example: "To implement stable walking for a humanoid robot, we need to consider zero moment point (ZMP)..."
+        module:
+          type: string
+          description: Module name containing the content
+          example: "Gazebo & Unity - The Digital Twin"
+        chapter:
+          type: string
+          description: Chapter name containing the content
+          example: "High-Fidelity Rendering & Human-Robot Interaction"
+        relevance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Relevance score of the result
+          example: 0.87
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "QUESTION_OUTSIDE_SCOPE"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "The question is outside the scope of the book content"
+        details:
+          type: object
+          description: Additional error details (optional)
